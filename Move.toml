@@ -1,0 +1,16 @@
+[package]
+name = "FEE_CALCULATOR"
+version = "1.0.0"
+authors = []
+
+[addresses]
+prabhas_addr="0x8e2181d28edd21c41a0a1c06d923f914664ec5c84a4f963e15e2a8283a8cc249"
+
+[dev-addresses]
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-framework.git"
+rev = "mainnet"
+subdir = "aptos-framework"
+
+[dev-dependencies]
