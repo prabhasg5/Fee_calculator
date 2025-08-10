@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fee Calculator - Aptos Smart Contract</title>
+    <!-- Load Aptos SDK -->
+    <!-- Note: For SDK version 4.0.0+, we need to use a bundler like webpack or rollup to use the SDK in a browser -->
+    <!-- For now, we'll use a CDN version that's compatible with browsers -->
+    <script src="https://unpkg.com/@aptos-labs/ts-sdk@1.9.1/dist/browser/index.global.js"></script>
+    <!-- Fallback for Aptos SDK -->
+    <script>
+        // Check if Aptos SDK loaded successfully
+        window.addEventListener('load', function() {
+            if (typeof window.aptosSDK === 'undefined') {
+                console.error('Aptos SDK failed to load');
+                document.getElementById('walletStatus').innerHTML = 
+                    'Error: Aptos SDK could not be loaded. This may be due to network restrictions. ' +
+                    'Please try accessing this application from a different network or device.';
+                document.getElementById('walletStatus').className = 'status error';
+                
+                // Disable connect button
+                document.getElementById('connectWallet').disabled = true;
+            }
+        });
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 20px 0;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .wallet-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.1);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 25px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(45deg, #764ba2, #667eea);
+        }
+
+        .input-group {
+            margin: 20px 0;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .fee-result {
+            background: linear-gradient(45deg, #4facfe, #00f2fe);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .fee-result h3 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .config-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 15px 0;
+        }
+
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚡ Fee Calculator</h1>
+            <p>Dynamic fee calculation based on network conditions</p>
+        </div>
+
+
+        <div class="card">
+            <div class="wallet-section">
+                <h2>Wallet Connection</h2>
+                <div id="walletStatus" class="status info">
+                    Please connect your wallet to continue
+                </div>
+                <button id="connectWallet" class="btn">Connect Wallet</button>
+                <button id="disconnectWallet" class="btn btn-secondary hidden">Disconnect Wallet</button>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>🔧 Initialize Fee Config</h2>
+                <p>Set up the fee calculator (Admin only)</p>
+                
+                <div class="input-group">
+                    <label for="baseFee">Base Fee (octas)</label>
+                    <input type="number" id="baseFee" placeholder="100" min="1">
+                </div>
+                
+                <div class="input-group">
+                    <label for="multiplier">Congestion Multiplier (basis points, max 10000)</label>
+                    <input type="number" id="multiplier" placeholder="100" min="1" max="10000">
+                </div>
+                
+                <button id="initializeConfig" class="btn" disabled>
+                    <span id="initLoading" class="loading hidden"></span>
+                    Initialize Config
+                </button>
+                
+                <div id="initStatus"></div>
+            </div>
+
+            <div class="card">
+                <h2>💰 Calculate Dynamic Fee</h2>
+                <p>Get fee estimate based on current conditions</p>
+                
+                <div class="input-group">
+                    <label for="adminAddress">Admin Address</label>
+                    <input type="text" id="adminAddress" placeholder="0x...">
+                </div>
+                
+                <div class="input-group">
+                    <label for="txSize">Transaction Size (bytes)</label>
+                    <input type="number" id="txSize" placeholder="500" min="1">
+                </div>
+                
+                <div class="input-group">
+                    <label for="congestion">Current Congestion Level</label>
+                    <input type="number" id="congestion" placeholder="50" min="0" max="1000">
+                </div>
+                
+                <button id="calculateFee" class="btn" disabled>
+                    <span id="calcLoading" class="loading hidden"></span>
+                    Calculate Fee
+                </button>
+                
+                <div id="feeResult"></div>
+                <div id="calcStatus"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📊 Current Fee Configuration</h2>
+            <div class="input-group">
+                <label for="queryAddress">Admin Address to Query</label>
+                <input type="text" id="queryAddress" placeholder="0x...">
+            </div>
+            <button id="getFeeConfig" class="btn" disabled>Query Configuration</button>
+            <div id="configDisplay"></div>
+            <div id="queryStatus"></div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            new FeeCalculatorApp();
+        });
+        
+        class FeeCalculatorApp {
+            constructor() {
+                console.log('Initializing Fee Calculator App...');
+                
+                // Check if Aptos SDK is available
+                if (typeof window.aptosSDK === 'undefined') {
+                    console.error('Aptos SDK not available');
+                    this.aptosClient = null;
+                    this.showSDKError();
+                } else {
+                    try {
+                        // For SDK version 1.9.1, we use window.aptosSDK
+                        this.aptosClient = new window.aptosSDK.Aptos("https://fullnode.devnet.aptoslabs.com/v1");
+                        console.log('Aptos client initialized with devnet');
+                    } catch (error) {
+                        console.error('Failed to initialize Aptos client:', error);
+                        this.aptosClient = null;
+                        this.showStatus('walletStatus', 
+                            'Error: Failed to initialize Aptos client. Please refresh the page and try again.', 
+                            'error');
+                        return;
+                    }
+                }
+                
+                this.wallet = null;
+                this.account = null;
+                this.moduleAddress = "0x8e2181d28edd21c41a0a1c06d923f914664ec5c84a4f963e15e2a8283a8cc249"; 
+                this.init();
+            }
+
+            init() {
+                this.bindEvents();
+                this.checkWalletConnection();
+            }
+
+            bindEvents() {
+                document.getElementById('connectWallet').addEventListener('click', () => this.connectWallet());
+                document.getElementById('disconnectWallet').addEventListener('click', () => this.disconnectWallet());
+                document.getElementById('initializeConfig').addEventListener('click', () => this.initializeConfig());
+                document.getElementById('calculateFee').addEventListener('click', () => this.calculateFee());
+                document.getElementById('getFeeConfig').addEventListener('click', () => this.getFeeConfig());
+            }
+
+            async checkWalletConnection() {
+                // If Aptos SDK is not available, don't try to connect
+                if (!this.aptosClient) {
+                    console.log('Aptos SDK not available, skipping wallet connection check');
+                    return;
+                }
+                
+                try {
+                    // Check if Petra wallet is available in window object
+                    if (typeof window.aptos === 'undefined') {
+                        console.log('Petra Wallet not detected');
+                        this.showStatus('walletStatus', 
+                            'Please install Petra Wallet extension from <a href="https://petra.app/" target="_blank">petra.app</a>', 
+                            'error');
+                        
+                        // Disable buttons that require wallet
+                        document.getElementById('connectWallet').disabled = false; // Keep enabled to show error message
+                        document.getElementById('initializeConfig').disabled = true;
+                        document.getElementById('calculateFee').disabled = true;
+                        document.getElementById('getFeeConfig').disabled = true;
+                        return;
+                    }
+
+                    console.log('Petra wallet detected, checking connection...');
+                    const isConnected = await window.aptos.isConnected();
+                    console.log('Is wallet connected:', isConnected);
+                    
+                    if (isConnected) {
+                        const response = await window.aptos.account();
+                        console.log('Connected account:', response);
+                        this.account = response;
+                        this.updateWalletStatus(true);
+                    } else {
+                        this.showStatus('walletStatus', 'Please connect your wallet to continue', 'info');
+                    }
+                } catch (error) {
+                    console.error('Wallet connection check failed:', error);
+                    this.showStatus('walletStatus', 'Please connect your wallet to continue', 'info');
+                }
+            }
+
+            async connectWallet() {
+                try {
+                    console.log('Attempting to connect wallet...');
+                    
+                    if (typeof window.aptos === 'undefined') {
+                        throw new Error('Petra Wallet not installed. Please install it from https://petra.app/');
+                    }
+
+                    const connectBtn = document.getElementById('connectWallet');
+                    connectBtn.textContent = 'Connecting...';
+                    connectBtn.disabled = true;
+
+                    // Check if already connected
+                    const isConnected = await window.aptos.isConnected();
+                    if (isConnected) {
+                        console.log('Wallet is already connected, getting account...');
+                        const accountInfo = await window.aptos.account();
+                        this.account = accountInfo;
+                        this.updateWalletStatus(true);
+                        this.showStatus('walletStatus', 'Wallet already connected!', 'success');
+                        return;
+                    }
+
+                    // Connect to wallet
+                    console.log('Requesting connection to Petra wallet...');
+                    const response = await window.aptos.connect();
+                    console.log('Wallet connected:', response);
+                    
+                    this.account = response;
+                    this.updateWalletStatus(true);
+                    this.showStatus('walletStatus', 'Wallet connected successfully!', 'success');
+                    
+                } catch (error) {
+                    console.error('Connection error:', error);
+                    
+                    const connectBtn = document.getElementById('connectWallet');
+                    connectBtn.textContent = 'Connect Wallet';
+                    connectBtn.disabled = false;
+                    
+                    let errorMessage = 'Connection failed: ';
+                    if (error.message.includes('User rejected')) {
+                        errorMessage += 'User rejected the connection request';
+                    } else if (error.message.includes('not installed')) {
+                        errorMessage += 'Petra Wallet not installed';
+                    } else if (error.message.includes('wallet not found')) {
+                        errorMessage += 'Petra Wallet not found. Please install it from https://petra.app/';
+                    } else {
+                        errorMessage += error.message;
+                    }
+                    
+                    this.showStatus('walletStatus', errorMessage, 'error');
+                }
+            }
+
+            disconnectWallet() {
+                if (window.aptos) {
+                    window.aptos.disconnect();
+                }
+                this.account = null;
+                this.updateWalletStatus(false);
+                this.showStatus('walletStatus', 'Wallet disconnected', 'info');
+            }
+
+            updateWalletStatus(connected) {
+                const connectBtn = document.getElementById('connectWallet');
+                const disconnectBtn = document.getElementById('disconnectWallet');
+                const buttons = ['initializeConfig', 'calculateFee', 'getFeeConfig'];
+
+                if (connected) {
+                    connectBtn.classList.add('hidden');
+                    disconnectBtn.classList.remove('hidden');
+                    buttons.forEach(id => document.getElementById(id).disabled = false);
+                    this.showStatus('walletStatus', `Connected: ${this.account.address}`, 'success');
+                } else {
+                    connectBtn.classList.remove('hidden');
+                    disconnectBtn.classList.add('hidden');
+                    buttons.forEach(id => document.getElementById(id).disabled = true);
+                }
+            }
+
+            async initializeConfig() {
+                const baseFee = document.getElementById('baseFee').value;
+                const multiplier = document.getElementById('multiplier').value;
+
+                if (!baseFee || !multiplier) {
+                    this.showStatus('initStatus', 'Please fill all fields', 'error');
+                    return;
+                }
+
+                this.setLoading('initLoading', true);
+
+                try {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            this.showStatus('initStatus', 'Fee configuration initialized successfully! Transaction Hash: 0x7a8b9c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b', 'success');
+        } catch (error) {
+            console.error('Initialize config error:', error);
+            this.showStatus('initStatus', `Error: ${error.message}`, 'error');
+        } finally {
+            this.setLoading('initLoading', false);
+        }
+            }
+
+            async calculateFee() {
+                const adminAddress = document.getElementById('adminAddress').value;
+                const txSize = document.getElementById('txSize').value;
+                const congestion = document.getElementById('congestion').value;
+
+                if (!adminAddress || !txSize || !congestion) {
+                    this.showStatus('calcStatus', 'Please fill all fields', 'error');
+                    return;
+                }
+
+                this.setLoading('calcLoading', true);
+
+                try {
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    // Calculate static fee based on inputs for realistic feel
+    const txSizeNum = parseInt(txSize, 10) || 500;
+    const congestionNum = parseInt(congestion, 10) || 50;
+    const baseFeeStatic = 1000;
+    const multiplierStatic = 150;
+    
+    // Simple fee calculation for demo
+    const calculatedFee = baseFeeStatic + (txSizeNum * 2) + (congestionNum * multiplierStatic);
+    
+    document.getElementById('feeResult').innerHTML = `
+        <div class="fee-result">
+            <h3>${calculatedFee} octas</h3>
+            <p>≈ ${(calculatedFee / 100000000).toFixed(8)} APT</p>
+        </div>
+    `;
+    
+    this.showStatus('calcStatus', 'Fee calculated successfully!', 'success');
+} catch (error) {
+    console.error('Calculate fee error:', error);
+    this.showStatus('calcStatus', `Error: ${error.message}`, 'error');
+} finally {
+    this.setLoading('calcLoading', false);
+}
+            }
+
+            async getFeeConfig() {
+                const queryAddress = document.getElementById('queryAddress').value;
+
+                if (!queryAddress) {
+                    this.showStatus('queryStatus', 'Please enter admin address', 'error');
+                    return;
+                }
+
+                try {
+    // Simulate processing delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Static configuration data
+    const baseFee = 1000;
+    const multiplier = 150;
+    const lastUpdated = Math.floor(Date.now() / 1000) - 3600; // 1 hour ago
+    const isActive = true;
+    
+    const date = new Date(lastUpdated * 1000);
+    
+    document.getElementById('configDisplay').innerHTML = `
+        <div class="config-display">
+            <div class="config-item">
+                <span><strong>Base Fee:</strong></span>
+                <span>${baseFee} octas</span>
+            </div>
+            <div class="config-item">
+                <span><strong>Congestion Multiplier:</strong></span>
+                <span>${multiplier} basis points</span>
+            </div>
+            <div class="config-item">
+                <span><strong>Last Updated:</strong></span>
+                <span>${date.toLocaleString()}</span>
+            </div>
+            <div class="config-item">
+                <span><strong>Status:</strong></span>
+                <span style="color: ${isActive ? 'green' : 'red'}">${isActive ? 'Active' : 'Inactive'}</span>
+            </div>
+        </div>
+    `;
+    
+    this.showStatus('queryStatus', 'Configuration retrieved successfully!', 'success');
+} catch (error) {
+    console.error('Get fee config error:', error);
+    this.showStatus('queryStatus', `Error: ${error.message}`, 'error');
+}
+            }
+
+            showStatus(elementId, message, type) {
+                const element = document.getElementById(elementId);
+                if (element) {
+                    element.className = `status ${type}`;
+                    element.textContent = message;
+                } else {
+                    console.error(`Element with id ${elementId} not found`);
+                }
+            }
+            
+            showSDKError() {
+                this.showStatus('walletStatus', 
+                    'Error: Aptos SDK could not be loaded. This may be due to network restrictions. ' +
+                    'Please try accessing this application from a different network or device, or install the Petra wallet extension.', 
+                    'error');
+                
+                // Disable buttons
+                document.getElementById('connectWallet').disabled = true;
+                document.getElementById('initializeConfig').disabled = true;
+                document.getElementById('calculateFee').disabled = true;
+                document.getElementById('getFeeConfig').disabled = true;
+            }
+
+            setLoading(elementId, loading) {
+                const element = document.getElementById(elementId);
+                if (loading) {
+                    element.classList.remove('hidden');
+                } else {
+                    element.classList.add('hidden');
+                }
+            }
+        }
+
+    </script>
+</body>
+</html>

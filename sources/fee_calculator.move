@@ -8,96 +8,11 @@ module prabhas_addr::FeeCalculator {
         last_updated: u64,   
         is_active: bool,        
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    
     const E_NOT_INITIALIZED: u64 = 1;
     const E_INVALID_MULTIPLIER: u64 = 2;
     const E_NOT_AUTHORIZED: u64 = 3;
-    public fun initialize_fee_config(admin: &signer, base_fee: u64, initial_multiplier: u64) {
+    public entry fun initialize_fee_config(admin: &signer, base_fee: u64, initial_multiplier: u64) {
         assert!(initial_multiplier <= 10000, E_INVALID_MULTIPLIER); 
         let config = NetworkFeeConfig {
             base_fee,
