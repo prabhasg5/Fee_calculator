@@ -66,3 +66,8 @@ Our vision is to create a transparent, fair, and efficient fee calculation syste
 ## Contract Details
 0x7868085cef0bea56163b7b7b7cf9cc4cb0eb64c50e608cd88e588a6c1f99f213
 ![alt text](<Screenshot 2025-08-09 at 10.13.47 PM.png>)
+![alt text](<Screenshot 2025-08-10 at 11.25.38 AM.png>)
+![alt text](<Screenshot 2025-08-10 at 11.24.20 AM.png>)
+![alt text](<Screenshot 2025-08-10 at 11.24.30 AM.png>)
+
+
